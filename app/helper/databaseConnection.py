@@ -1,19 +1,22 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from app.helpers.config import DATABASE_USER, DATABASE_PASSWORD, DATABASE_HOST, DATABASE_PORT, DATABASE_NAME
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.orm import declarative_base
+import ssl
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 
 # databaseConntUrl = f"mysql+pymysql://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
-databaseConntUrl = "postgresql+asyncpg://postgres:Anshujha93#@database-1.cl2g6ws4a3yt.ap-south-1.rds.amazonaws.com/postgres"
+databaseConntUrl = "postgresql+asyncpg://postgres:Anshujha93#@database-1.cl2g6ws4a3yt.ap-south-1.rds.amazonaws.com/postgres?ssl=require"
 
-engine = create_engine(databaseConntUrl,connect_args={"sslmode": "require"})
-sessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(databaseConntUrl,connect_args={"ssl": ssl_context})
+sessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 Base = declarative_base()
 
-def get_db():
-    db = sessionLocal()
+async def get_db():
     print("DB connected stabilist")
     try:
-        yield db
+        async with sessionLocal() as db:
+            yield db
     finally:
         db.close()
