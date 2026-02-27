@@ -1,21 +1,34 @@
+from fastapi import HTTPException
+from app.helper.helper import db
+from app.model.chatModel import (
+    ChatMessage,
+    ChatSummary
+)
 
+def chatHistoryList(lastNmessages,sessionId):
+    
+    listOfMessageWithRole = []
 
-def chatHistoryList(last_n_messages):
-    # This is a placeholder function. You should replace it with your actual implementation.
-    # For example, you might want to fetch the last n messages from a database or an in-memory store.
-    return [
-        {"role": "user", "content": "Hello!"},
-        {"role": "assistant", "content": "Hi there! How can I help you today?"},
-        # Add more messages as needed
-    ]
+    try:
+        listOfMessage = db.query(ChatMessage).filter( ChatMessage.session_id == sessionId).order_by(ChatMessage.message_order.desc()).limit(lastNmessages).all()
 
-def listofSummariazationMessages():     
-    # This is a placeholder function. You should replace it with your actual implementation.
-    # For example, you might want to fetch the last summarization messages from a database or an in-memory store.
-    return [
-        {"role": "system", "content": "Summary of previous conversation: ..."},
-        # Add more summarization messages as needed
-    ]
+        for message in listOfMessage:
+            listOfMessageWithRole.append({"role": message.role, "content": message.message})
+
+        return listOfMessageWithRole
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error fetching chat history: " + str(e))
+
+def listofSummariazationMessages(sessionId):     
+    try:
+        summarizationMessage = db.query(ChatSummary).filter( ChatSummary.session_id == sessionId).order_by(ChatSummary.id.desc()).first()
+
+        return summarizationMessage[0].summary_text if summarizationMessage else ""
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error fetching summarized messages: " + str(e))
+    
 
 def messageTokenizer(message):
     # This is a placeholder function. You should replace it with your actual implementation.
