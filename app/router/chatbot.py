@@ -4,14 +4,15 @@ from app.helper.helper import get_header_details
 from app.controller.chatbotController import (
     chatHistoryList,
     listofSummariazationMessages,
-    # messageTokenizer,
-    # sementicSearch,
-    # prepareChatPromptTemplate,
-    # chatLLM,
+    prepareChatPromptTemplate,
+    chatLLM,
     # reviewChatResult,
     # StoreHitory,
     # callMidSummarization,
     # callLongSummarization
+)
+from app.controller.sementicSerachController import (
+    sementicSearch
 )
 
 
@@ -21,18 +22,20 @@ router = APIRouter(prefix="/chatbot", tags=["chatbot"])
 async def chatbot(message: str, getHeaderDetail: HeaderDetail = Depends(get_header_details)):
     last_n_messages = 30
     listofMessages = chatHistoryList(last_n_messages,getHeaderDetail["sessionId"],getHeaderDetail["sessionId"])
-    lastSummariazationMessage = listofSummariazationMessages(getHeaderDetail["sessionId"])
-    # currentMessageTokenizer = messageTokenizer(message)
+    summariazationMessage = listofSummariazationMessages(getHeaderDetail["sessionId"])
+    sementicSearchResult = sementicSearch(message, getHeaderDetail["userId"])
 
-    # sementicSearchResult = sementicSearch(lmessage,getHeaderDetail["sessionId"], getHeaderDetail["userId"])
+    preparedTemplate = prepareChatPromptTemplate(message,listofMessages, summariazationMessage, sementicSearchResult) 
 
-    # preparedTemplate = prepareChatPromptTemplate(listofMessages, lastSummariazationMessage, sementicSearchResult, currentMessageTokenizer) 
+    chatResult = chatLLM(preparedTemplate)
 
-    # chatResult = chatLLM(preparedTemplate)
-
-    # reviewChatResult = reviewChatResult(chatResult)    
-
-    # return {"response": reviewChatResult}
+    return {
+        "status": "success",
+        "response": {
+            "role": "assistant",
+            "content": chatResult
+        }
+    }
 
     # StoreHitory(getHeaderDetail["sessionId"], message, reviewChatResult)
     # callMidSummarization(getHeaderDetail["sessionId"])

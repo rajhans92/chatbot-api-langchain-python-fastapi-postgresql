@@ -1,9 +1,15 @@
+from dotenv import load_dotenv
 from fastapi import HTTPException
 from app.helper.helper import db
+from langchain.chat_models import init_chat_model
 from app.model.chatModel import (
     ChatMessage,
     ChatSummary
 )
+import json
+load_dotenv()
+
+model = init_chat_model("gpt-4.1")
 
 def chatHistoryList(lastNmessages,sessionId):
     
@@ -29,17 +35,33 @@ def listofSummariazationMessages(sessionId):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error fetching summarized messages: " + str(e))
     
+def prepareChatPromptTemplate(queryMessage, listOfMessages, summariazationMessage, sementicSearchResult):
+    try:
+        promptTemplate = f"""
+        You are a helpful assistant. Use the following information to answer the user's question.
 
-def messageTokenizer(message):
-    # This is a placeholder function. You should replace it with your actual implementation.
-    # For example, you might want to use a tokenizer from a library like Hugging Face's Transformers.
-    return len(message.split())  # Simple tokenization based on whitespace
+        1. Chat History (most recent messages first):
+        {listOfMessages}
 
-def sementicSearch(message, sessionId, userId):
-    # This is a placeholder function. You should replace it with your actual implementation.
-    # For example, you might want to perform a semantic search using a vector database or an embedding model.
-    return [
-        {"role": "assistant", "content": "Relevant information based on semantic search: ..."},
-        # Add more relevant messages as needed
-    ]
+        2. Summarization of previous conversation:
+        {summariazationMessage}
 
+        3. Relevant information from user's documents:
+        {sementicSearchResult}
+
+        Now, based on the above information, answer the user's question.
+
+        Question: {queryMessage}
+        """
+
+        return promptTemplate
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error preparing chat prompt template: " + str(e))  
+
+def chatLLM(preparedTemplate):
+    try:
+        response = model.invoke(preparedTemplate)
+        return response.content if response else "Sorry, I couldn't generate a response at this time."
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error during LLM processing: " + str(e))
