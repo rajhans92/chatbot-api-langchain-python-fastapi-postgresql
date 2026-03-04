@@ -1,10 +1,10 @@
-from fastapi import Request, HTTPException
+from fastapi import Header, HTTPException
+from app.schema.header_schema import HeaderDetail
 
-
-def get_header_details(request: Request):     
+def get_header_details(header: HeaderDetail =  Header(...)):     
     try:
-        sessionId = request.headers.get("sessionId")
-        userId = request.headers.get("userId")
+        sessionId = header.sessionId
+        userId = header.userId
         return {"sessionId": sessionId, "userId": userId}
     except Exception as e:
         raise HTTPException(status_code=403, detail="Invalid User Session")

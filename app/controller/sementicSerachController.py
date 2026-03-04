@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from fastapi import HTTPException
 from langchain_openai import OpenAIEmbeddings
 from sqlalchemy import select
-from app.helper.helper import db
+from app.helper.databaseConnection import get_db
 from app.model.chatModel import (
     ChatSummary,
     MemoryEvents
@@ -16,6 +16,7 @@ embeddings = OpenAIEmbeddings(
 def sementicSearch(message, sessionId, userId):
     
     try:
+        db = get_db()
         listOfMessage = []
         query_vector = embeddings.embed_query(message)
         stmt = (

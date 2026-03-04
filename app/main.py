@@ -8,6 +8,7 @@ from app.helper.exceptionHelper import (
     global_exception_handler
 )
 from app.helper.databaseConnection import engine, Base
+from app.router import (chatbot)
 
 app  = FastAPI()
 
@@ -22,7 +23,7 @@ async def on_startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-
+app.include_router(chatbot.router, prefix='/api/v1')
 
 @app.get("/")
 def read_root():

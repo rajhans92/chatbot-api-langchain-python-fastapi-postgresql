@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
-from fastapi import HTTPException
-from app.helper.helper import db
+from fastapi import HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.helper.databaseConnection import get_db
 from langchain.chat_models import init_chat_model
 from app.controller.sementicSerachController import (
     embeddedText
@@ -14,10 +15,9 @@ load_dotenv()
 
 model = init_chat_model("gpt-4.1")
 
-def chatHistoryList(lastNmessages,sessionId):
+async def chatHistoryList(lastNmessages,sessionId, db):
     
     listOfMessageWithRole = []
-
     try:
         listOfMessage = db.query(ChatMessage).filter( ChatMessage.session_id == sessionId).order_by(ChatMessage.message_order.desc()).limit(lastNmessages).all()
 
@@ -29,14 +29,14 @@ def chatHistoryList(lastNmessages,sessionId):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error fetching chat history: " + str(e))
 
-def listofSummariazationMessages(noOfRow, sessionId):     
+def listofSummariazationMessages(noOfRow, sessionId, db):     
     listofSummariazationMessages = []
     try:
         summarizationMessage = db.query(ChatSummary).filter( ChatSummary.session_id == sessionId).order_by(ChatSummary.id.desc()).limit(noOfRow).all()
 
         for message in summarizationMessage:
             listofSummariazationMessages.append(message.summary_text)
-            
+
         return listofSummariazationMessages
     
     except Exception as e:
@@ -73,7 +73,7 @@ def chatLLM(preparedTemplate):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error during LLM processing: " + str(e))
     
-def StoreHitory(sessionId, userMessage, assistantMessage):
+def StoreHitory(sessionId, userMessage, assistantMessage, db):
     try:
         # Store user message
         userChat = [
@@ -86,7 +86,7 @@ def StoreHitory(sessionId, userMessage, assistantMessage):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error storing chat history: " + str(e))
     
-def callMidSummarization(sessionId):
+def callMidSummarization(sessionId, db):
     try:
         # Fetch all messages for the session
         messages = db.query(ChatMessage).filter(ChatMessage.session_id == sessionId, ChatMessage.is_summarized == 0).order_by(ChatMessage.message_order).all()
@@ -117,7 +117,7 @@ def callMidSummarization(sessionId):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error during mid-conversation summarization: " + str(e))
     
-def callMemoryEvents(userId, sessionId):
+def callMemoryEvents(userId, sessionId, db):
     try:
         # Fetch all messages for the session
         # messages = db.query(ChatMessage).filter(ChatMessage.session_id == sessionId).order_by(ChatMessage.message_order).all()
