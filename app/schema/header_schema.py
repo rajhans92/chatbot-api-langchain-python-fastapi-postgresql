@@ -1,7 +1,5 @@
 from pydantic import BaseModel
-from typing import List
-
 
 class HeaderDetail(BaseModel):
-    userId: int
     sessionId: int
+    userId: int
