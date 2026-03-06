@@ -10,13 +10,12 @@ from app.model.chatModel import (
 load_dotenv()
 
 embeddings = OpenAIEmbeddings(
-    model="GPT-4o mini"
+    model="text-embedding-3-small"
 )
 
-def sementicSearch(message, sessionId, userId):
+async def sementicSearch(message, sessionId, userId, db):
     
     try:
-        db = get_db()
         listOfMessage = []
         query_vector = embeddings.embed_query(message)
         stmt = (
@@ -26,7 +25,7 @@ def sementicSearch(message, sessionId, userId):
             .limit(2)
         )
 
-        result = db.execute(stmt)
+        result = await db.execute(stmt)
         results = result.scalars().all()
         
         for r in results:
@@ -34,12 +33,12 @@ def sementicSearch(message, sessionId, userId):
 
         stmt = (
             select(ChatSummary)
-            .where(ChatSummary.sessionId == sessionId)
+            .where(ChatSummary.session_id == sessionId)
             .order_by(ChatSummary.summary_embedding.cosine_distance(query_vector))
             .limit(4)
         )
 
-        result = db.execute(stmt)
+        result = await db.execute(stmt)
         results = result.scalars().all()
         
         for r in results:

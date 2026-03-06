@@ -1,26 +1,53 @@
 from dotenv import load_dotenv
 from fastapi import HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.helper.databaseConnection import get_db
+from sqlalchemy import select,func
 from langchain.chat_models import init_chat_model
 from app.controller.sementicSerachController import (
     embeddedText
 )
 from app.model.chatModel import (
     ChatMessage,
-    ChatSummary
+    ChatSummary,
+    ChatSession,
+    MemoryEvents
 )
 import json
 load_dotenv()
 
 model = init_chat_model("gpt-4.1")
 
+async def chatSessionIdCreate(sessionData, userId, db):
+    try:
+        
+                # Store the summary in the database
+        chat_session = ChatSession(user_id=userId, title=sessionData.title, model_name=sessionData.modelName)
+        db.add(chat_session)
+
+        await db.flush()   # sends INSERT to DB
+
+        sessionId = chat_session.id
+        await db.commit()
+
+        return sessionId
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error creating chat session: " + str(e))
+
 async def chatHistoryList(lastNmessages,sessionId, db):
     
     listOfMessageWithRole = []
     try:
-        listOfMessage = db.query(ChatMessage).filter( ChatMessage.session_id == sessionId).order_by(ChatMessage.message_order.desc()).limit(lastNmessages).all()
-
+        query = (
+            select(ChatMessage)
+            .filter(ChatMessage.session_id == sessionId)
+            .order_by(ChatMessage.message_order.desc())
+            .limit(lastNmessages)
+        )
+        result = await db.execute(query)
+        # .scalars() extracts the ChatMessage objects from the result rows
+        listOfMessage = result.scalars().all()
+        
         for message in listOfMessage:
             listOfMessageWithRole.append({"role": message.role, "content": message.message})
 
@@ -29,10 +56,19 @@ async def chatHistoryList(lastNmessages,sessionId, db):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error fetching chat history: " + str(e))
 
-def listofSummariazationMessages(noOfRow, sessionId, db):     
+async def listofSummariazationMessages(noOfRow, sessionId, db):     
     listofSummariazationMessages = []
     try:
-        summarizationMessage = db.query(ChatSummary).filter( ChatSummary.session_id == sessionId).order_by(ChatSummary.id.desc()).limit(noOfRow).all()
+
+        query = (
+            select(ChatSummary)
+            .filter( ChatSummary.session_id == sessionId)
+            .order_by(ChatSummary.id.desc())
+            .limit(noOfRow)
+        )
+        result = await db.execute(query)
+        # .scalars() extracts the ChatMessage objects from the result rows
+        summarizationMessage = result.scalars().all()
 
         for message in summarizationMessage:
             listofSummariazationMessages.append(message.summary_text)
@@ -73,27 +109,43 @@ def chatLLM(preparedTemplate):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error during LLM processing: " + str(e))
     
-def StoreHitory(sessionId, userMessage, assistantMessage, db):
+async def storeHitory(sessionId, userMessage, assistantMessage, db):
     try:
+
+        message_order_result = await db.execute(
+            select(func.max(ChatMessage.message_order))
+            .where(ChatMessage.session_id == sessionId)
+        )
+
+        max_order = (message_order_result.scalar() or 0) + 1
+
         # Store user message
         userChat = [
-            ChatMessage(session_id=sessionId, role="user", message=userMessage),
-            ChatMessage(session_id=sessionId, role="assistant", message=assistantMessage)
+            ChatMessage(session_id=sessionId, role="user", message=userMessage, tokens_used=len(userMessage.split()), message_order=max_order, is_summarized=0),
+            ChatMessage(session_id=sessionId, role="assistant", message=assistantMessage, tokens_used=len(assistantMessage.split()), message_order=(max_order+1), is_summarized=0)
         ]
         db.add_all(userChat)
-        db.commit()
+        await db.commit()
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error storing chat history: " + str(e))
     
-def callMidSummarization(sessionId, db):
+async def callMidSummarization(sessionId, db):
     try:
         # Fetch all messages for the session
-        messages = db.query(ChatMessage).filter(ChatMessage.session_id == sessionId, ChatMessage.is_summarized == 0).order_by(ChatMessage.message_order).all()
         
+        query = (
+            select(ChatMessage)
+            .filter( ChatMessage.session_id == sessionId, ChatMessage.is_summarized == 0)
+            .order_by(ChatMessage.message_order)
+        )
+        result = await db.execute(query)
+        # .scalars() extracts the ChatMessage objects from the result rows
+        messages = result.scalars().all()
+
         if len(messages) != 0:
 
-            total_tokens = sum(message.token_count for message in messages)
+            total_tokens = sum(message.tokens_used for message in messages)
 
             if total_tokens > 3000:
                 message_texts = [msg.message for msg in messages]
@@ -109,10 +161,10 @@ def callMidSummarization(sessionId, db):
                 # Store the summary in the database
                 chat_summary = ChatSummary(session_id=sessionId, summary_text=summary_text, summary_embedding=summary_embedding, message_start_order=messages[0].message_order, message_end_order=messages[-1].message_order, token_count=total_tokens)
                 db.add(chat_summary)
-                db.commit()
+                await db.commit()
 
                 db.query(ChatMessage).filter(ChatMessage.session_id == sessionId).update({"is_summarized": 1})
-                db.commit()
+                await db.commit()
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error during mid-conversation summarization: " + str(e))
