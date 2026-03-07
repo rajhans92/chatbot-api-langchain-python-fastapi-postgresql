@@ -3,6 +3,9 @@ from fastapi import HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select,func
 from langchain.chat_models import init_chat_model
+from app.helper.config import (
+    LLM_MODEL
+)
 from app.controller.sementicSerachController import (
     embeddedText
 )
@@ -12,10 +15,10 @@ from app.model.chatModel import (
     ChatSession,
     MemoryEvents
 )
-import json
 load_dotenv()
 
-model = init_chat_model("gpt-4.1")
+
+model = init_chat_model(LLM_MODEL)
 
 async def chatSessionIdCreate(sessionData, userId, db):
     try:

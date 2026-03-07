@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from fastapi import HTTPException
 from langchain_openai import OpenAIEmbeddings
 from sqlalchemy import select
-from app.helper.databaseConnection import get_db
+from app.helpers.config import EMBADDING_MODEL
 from app.model.chatModel import (
     ChatSummary,
     MemoryEvents
@@ -10,7 +10,7 @@ from app.model.chatModel import (
 load_dotenv()
 
 embeddings = OpenAIEmbeddings(
-    model="text-embedding-3-small"
+    model=EMBADDING_MODEL
 )
 
 async def sementicSearch(message, sessionId, userId, db):
