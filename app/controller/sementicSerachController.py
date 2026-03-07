@@ -2,13 +2,13 @@ from dotenv import load_dotenv
 from fastapi import HTTPException
 from langchain_openai import OpenAIEmbeddings
 from sqlalchemy import select
-from app.helpers.config import EMBADDING_MODEL
+from app.helper.config import EMBADDING_MODEL
 from app.model.chatModel import (
     ChatSummary,
     MemoryEvents
 )
 load_dotenv()
-
+print(f"Using embedding model: {EMBADDING_MODEL}")
 embeddings = OpenAIEmbeddings(
     model=EMBADDING_MODEL
 )

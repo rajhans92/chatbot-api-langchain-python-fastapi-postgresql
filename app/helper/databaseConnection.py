@@ -11,8 +11,8 @@ ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
-# databaseConntUrl = f"mysql+pymysql://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
-databaseConntUrl = "postgresql+asyncpg://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}/{DATABASE_NAME}?ssl=require"
+databaseConntUrl = f"postgresql+asyncpg://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}/{DATABASE_NAME}?ssl=require"
+
 
 engine = create_async_engine(databaseConntUrl,connect_args={"ssl": ssl_context})
 sessionLocal = async_sessionmaker(engine, expire_on_commit=False)

@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 import os
-load_dotenv()
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 API_BASE_NAME= os.getenv("API_BASE_NAME")
 API_VERSION= os.getenv("API_VERSION")
