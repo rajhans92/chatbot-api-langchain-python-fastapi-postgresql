@@ -1,6 +1,9 @@
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
+from app.helper.config import (
+    API_VERSION,
+    API_BASE_NAME
+)
 from app.helper.exceptionHelper import (
     http_exception_handler,
     validation_exception_handler,
@@ -23,7 +26,7 @@ async def on_startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-app.include_router(chatbot.router, prefix='/api/v1')
+app.include_router(chatbot.router, prefix='/{API_BASE_NAME}/{API_VERSION}')
 
 @app.get("/")
 def read_root():
