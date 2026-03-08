@@ -4,17 +4,23 @@ from app.helper.config import (
     DATABASE_USER,
     DATABASE_PASSWORD,
     DATABASE_HOST,
-    DATABASE_NAME
+    DATABASE_NAME,
+    DATABASE_SSL_MODE
 )
 import ssl
 ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
-databaseConntUrl = f"postgresql+asyncpg://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}/{DATABASE_NAME}?ssl=require"
+connect_args = {}
 
+databaseConntUrl = f"postgresql+asyncpg://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}/{DATABASE_NAME}"
 
-engine = create_async_engine(databaseConntUrl,connect_args={"ssl": ssl_context})
+if DATABASE_SSL_MODE.lower() == "true":
+    databaseConntUrl += "?sslmode=require"
+    connect_args["ssl"] = ssl_context
+
+engine = create_async_engine(databaseConntUrl,connect_args=connect_args)
 sessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 Base = declarative_base()
