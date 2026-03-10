@@ -1,4 +1,4 @@
-name: Deploy FastAPI
+name: Deploy GenAI-Chatbot
 
 on:
   push:
@@ -27,12 +27,13 @@ jobs:
 
     - name: Build Docker Image
       run: |
-        docker build -t fastapi-app .
+        IMAGE_TAG=${{ github.run_number }}
+        docker build -t genAi-chatbot-app:$IMAGE_TAG .
 
     - name: Tag Image
       run: |
         IMAGE_TAG=${{ github.run_number }}
-        docker tag fastapi-app:$IMAGE_TAG ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
+        docker tag genAi-chatbot-app:$IMAGE_TAG ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
 
     - name: Push Image
       run: |
@@ -48,6 +49,6 @@ jobs:
         script: |
           IMAGE_TAG=${{ github.run_number }}
           docker pull ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
-          docker stop fastapi || true
-          docker rm fastapi || true
-          docker run -d -p 8000:8000 --name fastapi --restart unless-stopped ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
+          docker stop genAi-chatbot-app || true
+          docker rm genAi-chatbot-app || true
+          docker run -d -p 8000:8000 --name genAi-chatbot-app --restart unless-stopped ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
