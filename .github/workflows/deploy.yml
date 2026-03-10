@@ -50,4 +50,4 @@ jobs:
           docker pull ${{ secrets.ECR_REPOSITORY }}:IMAGE_TAG
           docker stop fastapi || true
           docker rm fastapi || true
-          docker run -d -p 8000:8000 --name fastapi ${{ secrets.ECR_REPOSITORY }}:IMAGE_TAG
+          docker run -d -p 8000:8000 --name fastapi --restart unless-stopped ${{ secrets.ECR_REPOSITORY }}:IMAGE_TAG
