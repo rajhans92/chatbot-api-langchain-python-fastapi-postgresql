@@ -31,12 +31,12 @@ jobs:
 
     - name: Tag Image
       run: |
-        IMAGE_TAG=${{ github.sha }}
+        IMAGE_TAG=${{ github.run_number }}
         docker tag fastapi-app:IMAGE_TAG ${{ secrets.ECR_REPOSITORY }}:IMAGE_TAG
 
     - name: Push Image
       run: |
-        IMAGE_TAG=${{ github.sha }}
+        IMAGE_TAG=${{ github.run_number }}
         docker push ${{ secrets.ECR_REPOSITORY }}:IMAGE_TAG
 
     - name: Deploy on EC2
@@ -46,7 +46,7 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          IMAGE_TAG=${{ github.sha }}
+          IMAGE_TAG=${{ github.run_number }}
           docker pull ${{ secrets.ECR_REPOSITORY }}:IMAGE_TAG
           docker stop fastapi || true
           docker rm fastapi || true
