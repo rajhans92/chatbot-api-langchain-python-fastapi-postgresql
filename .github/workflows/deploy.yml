@@ -48,6 +48,7 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           IMAGE_TAG=${{ github.run_number }}
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URL }}
           docker pull ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
           docker stop genai-chatbot-app || true
           docker rm genai-chatbot-app || true
