@@ -31,4 +31,4 @@ async def get_db():
         async with sessionLocal() as db:
             yield db
     finally:
-        db.close()
+        await db.close()

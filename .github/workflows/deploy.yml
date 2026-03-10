@@ -52,4 +52,4 @@ jobs:
           docker pull ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
           docker stop genai-chatbot-app || true
           docker rm genai-chatbot-app || true
-          docker run -d -p 8000:8000 --name genai-chatbot-app --restart unless-stopped ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
+          docker run -d -p 8000:8000 --name genai-chatbot-app --env-file /home/ec2-user/genai-chatbot.env --restart unless-stopped  ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
