@@ -28,12 +28,12 @@ jobs:
     - name: Build Docker Image
       run: |
         IMAGE_TAG=${{ github.run_number }}
-        docker build -t genAi-chatbot-app:$IMAGE_TAG .
+        docker build -t genai-chatbot-app:$IMAGE_TAG .
 
     - name: Tag Image
       run: |
         IMAGE_TAG=${{ github.run_number }}
-        docker tag genAi-chatbot-app:$IMAGE_TAG ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
+        docker tag genai-chatbot-app:$IMAGE_TAG ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
 
     - name: Push Image
       run: |
@@ -49,6 +49,6 @@ jobs:
         script: |
           IMAGE_TAG=${{ github.run_number }}
           docker pull ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
-          docker stop genAi-chatbot-app || true
-          docker rm genAi-chatbot-app || true
-          docker run -d -p 8000:8000 --name genAi-chatbot-app --restart unless-stopped ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
+          docker stop genai-chatbot-app || true
+          docker rm genai-chatbot-app || true
+          docker run -d -p 8000:8000 --name genai-chatbot-app --restart unless-stopped ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
