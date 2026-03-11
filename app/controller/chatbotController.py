@@ -17,7 +17,7 @@ from app.model.chatModel import (
 )
 load_dotenv()
 
-
+ 
 model = init_chat_model(LLM_MODEL)
 
 async def chatSessionIdCreate(sessionData, userId, db):
