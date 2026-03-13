@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, BackgroundTasks
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.helper.databaseConnection import get_db
 from app.schema.chatbotSchema import (HeaderDetail,SessionRequest, HeaderDetailOnlyUser)
@@ -45,9 +46,11 @@ async def new_chat_session(sessionData: SessionRequest, getHeaderDetail:HeaderDe
 async def chatbot(background_tasks: BackgroundTasks,message: str, getHeaderDetail: HeaderDetail = Depends(get_header_with_session_details), db: AsyncSession = Depends(get_db)):
     last_n_messages = LAST_N_MESSAGES
     noOfRow = NO_OF_ROW_SUMMARY
-    listofMessages = await chatHistoryList(last_n_messages,getHeaderDetail["sessionId"], db)
-    summariazationMessage = await listofSummariazationMessages(noOfRow, getHeaderDetail["sessionId"], db)
-    sementicSearchResult = await sementicSearch(message, getHeaderDetail["sessionId"],getHeaderDetail["userId"],db)
+    listofMessages, summariazationMessage, sementicSearchResult = await asyncio.gather(
+        chatHistoryList(last_n_messages, getHeaderDetail["sessionId"], db),
+        listofSummariazationMessages(noOfRow, getHeaderDetail["sessionId"], db),
+        sementicSearch(message, getHeaderDetail["sessionId"], getHeaderDetail["userId"], db)
+    )
 
     preparedTemplate = prepareChatPromptTemplate(message,listofMessages, summariazationMessage, sementicSearchResult) 
 
