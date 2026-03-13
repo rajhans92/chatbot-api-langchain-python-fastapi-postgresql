@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+import asyncio
 from fastapi import HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select,func
@@ -105,10 +106,28 @@ def prepareChatPromptTemplate(queryMessage, listOfMessages, summariazationMessag
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error preparing chat prompt template: " + str(e))  
 
-def chatLLM(preparedTemplate):
+async def stream_llm_response(preparedTemplate, userId, sessionId, message, db):
     try:
-        response = model.invoke(preparedTemplate)
-        return response.content if response else "Sorry, I couldn't generate a response at this time."
+        full_response = ""
+
+        async for token in model.astream(preparedTemplate):
+
+            full_response += token
+
+            yield token
+
+        # store conversation after completion
+        asyncio.create_task(
+            storeHitory(sessionId, message, full_response, db)
+        )
+
+        asyncio.create_task(
+            callMidSummarization(sessionId, db)
+        )
+
+        asyncio.create_task(
+            callMemoryEvents(userId, sessionId, db)
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error during LLM processing: " + str(e))
     

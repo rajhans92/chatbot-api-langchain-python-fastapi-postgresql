@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.helper.databaseConnection import get_db
 from app.schema.chatbotSchema import (HeaderDetail,SessionRequest, HeaderDetailOnlyUser)
@@ -14,10 +16,7 @@ from app.controller.chatbotController import (
     chatHistoryList,
     listofSummariazationMessages,
     prepareChatPromptTemplate,
-    chatLLM,
-    storeHitory,
-    callMidSummarization,
-    callMemoryEvents,
+    stream_llm_response,
     chatSessionIdCreate
 )
 from app.controller.sementicSerachController import (
@@ -42,25 +41,18 @@ async def new_chat_session(sessionData: SessionRequest, getHeaderDetail:HeaderDe
     }
 
 @router.post("/")
-async def chatbot(background_tasks: BackgroundTasks,message: str, getHeaderDetail: HeaderDetail = Depends(get_header_with_session_details), db: AsyncSession = Depends(get_db)):
+async def chatbot(message: str, getHeaderDetail: HeaderDetail = Depends(get_header_with_session_details), db: AsyncSession = Depends(get_db)):
     last_n_messages = LAST_N_MESSAGES
     noOfRow = NO_OF_ROW_SUMMARY
-    listofMessages = await chatHistoryList(last_n_messages,getHeaderDetail["sessionId"], db)
-    summariazationMessage = await listofSummariazationMessages(noOfRow, getHeaderDetail["sessionId"], db)
-    sementicSearchResult = await sementicSearch(message, getHeaderDetail["sessionId"],getHeaderDetail["userId"],db)
+    listofMessages, summariazationMessage, sementicSearchResult = await asyncio.gather(
+        chatHistoryList(last_n_messages, getHeaderDetail["sessionId"], db),
+        listofSummariazationMessages(noOfRow, getHeaderDetail["sessionId"], db),
+        sementicSearch(message, getHeaderDetail["sessionId"], getHeaderDetail["userId"], db)
+    )
 
     preparedTemplate = prepareChatPromptTemplate(message,listofMessages, summariazationMessage, sementicSearchResult) 
 
-    chatResult = chatLLM(preparedTemplate)
-
-    background_tasks.add_task(storeHitory, getHeaderDetail["sessionId"], message, chatResult, db)
-    background_tasks.add_task(callMidSummarization, getHeaderDetail["sessionId"], db)
-    background_tasks.add_task(callMemoryEvents, getHeaderDetail["userId"], getHeaderDetail["sessionId"], db)
-
-    return {
-        "status": "success",
-        "response": {
-            "role": "assistant",
-            "content": chatResult
-        }
-    }
+    return StreamingResponse(
+        stream_llm_response(preparedTemplate, getHeaderDetail["userId"], getHeaderDetail["sessionId"], message, db),
+        media_type="text/event-stream"
+    )
