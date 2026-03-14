@@ -110,26 +110,40 @@ async def stream_llm_response(preparedTemplate, userId, sessionId, message, db):
     try:
         full_response = ""
 
-        async for token in model.astream(preparedTemplate):
+        async for chunk in model.astream(preparedTemplate):
 
+            token = chunk.content if chunk.content else ""
             full_response += token
 
             yield token
 
         # store conversation after completion
-        asyncio.create_task(
-            storeHitory(sessionId, message, full_response, db)
-        )
+        # asyncio.create_task(
+        #     storeHitory(sessionId, message, full_response, db)
+        # )
 
-        asyncio.create_task(
-            callMidSummarization(sessionId, db)
-        )
+        # asyncio.create_task(
+        #     callMidSummarization(sessionId, db)
+        # )
 
-        asyncio.create_task(
-            callMemoryEvents(userId, sessionId, db)
-        )
+        # asyncio.create_task(
+        #     callMemoryEvents(userId, sessionId, db)
+        # )
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error during LLM processing: " + str(e))
+    
+    # finally:
+    #     asyncio.create_task(
+    #         storeHitory(sessionId, message, full_response,db)
+    #     )
+
+    #     asyncio.create_task(
+    #         callMidSummarization(sessionId,db)
+    #     )
+
+    #     asyncio.create_task(
+    #         callMemoryEvents(userId, sessionId,db)
+        # )
     
 async def storeHitory(sessionId, userMessage, assistantMessage, db):
     try:
