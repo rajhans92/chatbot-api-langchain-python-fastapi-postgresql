@@ -7,6 +7,7 @@ from langchain.chat_models import init_chat_model
 from app.helper.config import (
     LLM_MODEL
 )
+from app.helper.databaseConnection import sessionLocal
 from app.controller.sementicSerachController import (
     embeddedText
 )
@@ -117,105 +118,86 @@ async def stream_llm_response(preparedTemplate, userId, sessionId, message, db):
 
             yield token
 
-        # store conversation after completion
-        # asyncio.create_task(
-        #     storeHitory(sessionId, message, full_response, db)
-        # )
-
-        # asyncio.create_task(
-        #     callMidSummarization(sessionId, db)
-        # )
-
-        # asyncio.create_task(
-        #     callMemoryEvents(userId, sessionId, db)
-        # )
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error during LLM processing: " + str(e))
     
-    # finally:
-    #     asyncio.create_task(
-    #         storeHitory(sessionId, message, full_response,db)
-    #     )
-
-    #     asyncio.create_task(
-    #         callMidSummarization(sessionId,db)
-    #     )
-
-    #     asyncio.create_task(
-    #         callMemoryEvents(userId, sessionId,db)
-        # )
-    
-async def storeHitory(sessionId, userMessage, assistantMessage, db):
-    try:
-
-        message_order_result = await db.execute(
-            select(func.max(ChatMessage.message_order))
-            .where(ChatMessage.session_id == sessionId)
+    finally:
+        asyncio.create_task(
+            storeHitory(sessionId, message, full_response)
         )
 
-        max_order = (message_order_result.scalar() or 0) + 1
+        asyncio.create_task(
+            callMidSummarization(sessionId)
+        )
 
-        # Store user message
-        userChat = [
-            ChatMessage(session_id=sessionId, role="user", message=userMessage, tokens_used=len(userMessage.split()), message_order=max_order, is_summarized=0),
-            ChatMessage(session_id=sessionId, role="assistant", message=assistantMessage, tokens_used=len(assistantMessage.split()), message_order=(max_order+1), is_summarized=0)
-        ]
-        db.add_all(userChat)
-        await db.commit()
+        asyncio.create_task(
+            callMemoryEvents(userId, sessionId)
+        )
+    
+async def storeHitory(sessionId, userMessage, assistantMessage):
+    try:
+        async with sessionLocal() as db:
+            message_order_result = await db.execute(
+                select(func.max(ChatMessage.message_order))
+                .where(ChatMessage.session_id == sessionId)
+            )
+
+            max_order = (message_order_result.scalar() or 0) + 1
+
+            # Store user message
+            userChat = [
+                ChatMessage(session_id=sessionId, role="user", message=userMessage, tokens_used=len(userMessage.split()), message_order=max_order, is_summarized=0),
+                ChatMessage(session_id=sessionId, role="assistant", message=assistantMessage, tokens_used=len(assistantMessage.split()), message_order=(max_order+1), is_summarized=0)
+            ]
+            db.add_all(userChat)
+            await db.commit()
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error storing chat history: " + str(e))
     
-async def callMidSummarization(sessionId, db):
+async def callMidSummarization(sessionId):
     try:
         # Fetch all messages for the session
-        
-        query = (
-            select(ChatMessage)
-            .filter( ChatMessage.session_id == sessionId, ChatMessage.is_summarized == 0)
-            .order_by(ChatMessage.message_order)
-        )
-        result = await db.execute(query)
-        # .scalars() extracts the ChatMessage objects from the result rows
-        messages = result.scalars().all()
+        async with sessionLocal() as db:
+            query = (
+                select(ChatMessage)
+                .filter( ChatMessage.session_id == sessionId, ChatMessage.is_summarized == 0)
+                .order_by(ChatMessage.message_order)
+            )
+            result = await db.execute(query)
+            # .scalars() extracts the ChatMessage objects from the result rows
+            messages = result.scalars().all()
 
-        if len(messages) != 0:
+            if len(messages) != 0:
 
-            total_tokens = sum(message.tokens_used for message in messages)
+                total_tokens = sum(message.tokens_used for message in messages)
 
-            if total_tokens > 3000:
-                message_texts = [msg.message for msg in messages]
+                if total_tokens > 3000:
+                    message_texts = [msg.message for msg in messages]
 
-                # Create a summarization prompt
-                summarization_prompt = f"Summarize the following conversation:\n\n{message_texts}"
+                    # Create a summarization prompt
+                    summarization_prompt = f"Summarize the following conversation:\n\n{message_texts}"
 
-                # Get the summary from the LLM
-                summary_response = model.invoke(summarization_prompt)
-                summary_text = summary_response.content if summary_response else "No summary available."
-                summary_embedding = embeddedText(summary_text)
+                    # Get the summary from the LLM
+                    summary_response = model.invoke(summarization_prompt)
+                    summary_text = summary_response.content if summary_response else "No summary available."
+                    summary_embedding = embeddedText(summary_text)
 
-                # Store the summary in the database
-                chat_summary = ChatSummary(session_id=sessionId, summary_text=summary_text, summary_embedding=summary_embedding, message_start_order=messages[0].message_order, message_end_order=messages[-1].message_order, token_count=total_tokens)
-                db.add(chat_summary)
-                await db.commit()
+                    # Store the summary in the database
+                    chat_summary = ChatSummary(session_id=sessionId, summary_text=summary_text, summary_embedding=summary_embedding, message_start_order=messages[0].message_order, message_end_order=messages[-1].message_order, token_count=total_tokens)
+                    db.add(chat_summary)
+                    await db.commit()
 
-                db.query(ChatMessage).filter(ChatMessage.session_id == sessionId).update({"is_summarized": 1})
-                await db.commit()
+                    db.query(ChatMessage).filter(ChatMessage.session_id == sessionId).update({"is_summarized": 1})
+                    await db.commit()
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error during mid-conversation summarization: " + str(e))
     
-def callMemoryEvents(userId, sessionId, db):
+async def callMemoryEvents(userId, sessionId):
     try:
-        # Fetch all messages for the session
-        # messages = db.query(ChatMessage).filter(ChatMessage.session_id == sessionId).order_by(ChatMessage.message_order).all()
-        
-        # for message in messages:
-        #     memory_event = MemoryEvents(user_id=userId, text=message.message, text_embedding=embeddedText(message.message), importance_score=5)
-        #     db.add(memory_event)
 
-        # db.commit()
-        print("Memory events created successfully for user_id:", userId)
+        pass
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error during memory event creation: " + str(e))
