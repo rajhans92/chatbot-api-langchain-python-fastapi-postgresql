@@ -1,9 +1,3 @@
-Got it 👍 Since your project is currently a **simple AI chatbot API (FastAPI + LangChain + PostgreSQL)** and **does NOT implement RAG yet**, the README should reflect the **current functionality only**. Later you can update it when you add RAG.
-
-Below is a **clean and realistic README.md** for your current project.
-
----
-
 # 🤖 AI Chatbot API
 
 FastAPI + LangChain + PostgreSQL
@@ -230,7 +224,7 @@ Planned improvements:
 
 **Rupesh Rajhans**
 rupesh.rajhans92@gmail.com
-Software Engineer | GenAI Developer | AI SaaS Builder
+(Software Engineer | GenAI Developer | AI SaaS Builder)
 
 ---
 
