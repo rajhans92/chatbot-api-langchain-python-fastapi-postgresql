@@ -122,15 +122,15 @@ async def stream_llm_response(preparedTemplate, userId, sessionId, message, db):
         raise HTTPException(status_code=500, detail="Error during LLM processing: " + str(e))
     
     finally:
-        asyncio.create_task(
+        await asyncio.create_task(
             storeHitory(sessionId, message, full_response)
         )
 
-        asyncio.create_task(
+        await asyncio.create_task(
             callMidSummarization(sessionId)
         )
 
-        asyncio.create_task(
+        await asyncio.create_task(
             callMemoryEvents(userId, sessionId)
         )
     
@@ -179,7 +179,7 @@ async def callMidSummarization(sessionId):
                     summarization_prompt = f"Summarize the following conversation:\n\n{message_texts}"
 
                     # Get the summary from the LLM
-                    summary_response = model.invoke(summarization_prompt)
+                    summary_response = model.ainvoke(summarization_prompt)
                     summary_text = summary_response.content if summary_response else "No summary available."
                     summary_embedding = embeddedText(summary_text)
 
@@ -195,9 +195,78 @@ async def callMidSummarization(sessionId):
         raise HTTPException(status_code=500, detail="Error during mid-conversation summarization: " + str(e))
     
 async def callMemoryEvents(userId, sessionId):
+
     try:
 
-        pass
+        async with sessionLocal() as db:
+
+            # 1️⃣ Fetch recent conversation
+            query = (
+                select(ChatMessage)
+                .filter(ChatMessage.session_id == sessionId)
+                .order_by(ChatMessage.message_order.desc())
+                .limit(10)
+            )
+
+            result = await db.execute(query)
+            messages = result.scalars().all()
+
+            if not messages:
+                return
+
+            conversation_text = "\n".join(
+                f"{msg.role}: {msg.message}" for msg in messages
+            )
+
+            # 2️⃣ Prompt LLM to extract memory events
+            memory_prompt = f"""
+            Extract important long-term user facts from the conversation below.
+
+            Rules:
+            - Only extract facts about the user.
+            - Ignore normal chat messages.
+            - Each memory should be short (1 sentence).
+            - Return results as a bullet list.
+
+            Conversation:
+            {conversation_text}
+            """
+
+            response = await model.ainvoke(memory_prompt)
+
+            memory_text = response.content if response else ""
+
+            if not memory_text:
+                return
+
+            # 3️⃣ Split bullet list
+            memories = [
+                line.strip("- ").strip()
+                for line in memory_text.split("\n")
+                if line.strip()
+            ]
+
+            # 4️⃣ Store memory events
+            memory_records = []
+
+            for mem in memories:
+
+                embedding = embeddedText(mem)
+
+                memory_records.append(
+                    MemoryEvents(
+                        user_id=userId,
+                        text=mem,
+                        text_embedding=embedding,
+                        importance_score=5
+                    )
+                )
+
+            db.add_all(memory_records)
+
+            await db.commit()
+
+            print(f"Memory events stored for user {userId}")
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error during memory event creation: " + str(e))
+        print("Error during memory event creation:", e)
