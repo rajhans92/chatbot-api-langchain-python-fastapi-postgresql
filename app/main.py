@@ -10,7 +10,7 @@ from app.helper.exceptionHelper import (
     value_error_handler,
     global_exception_handler
 )
-from app.helper.databaseConnection import engine, Base
+from app.helper.databaseConnection import initialize_database
 from app.router import (chatbot)
 
 app  = FastAPI()
@@ -21,10 +21,15 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(ValueError, value_error_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
-@app.on_event("startup")
-async def on_startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+@app.post("/setup/database", tags=["system"])
+async def setup_database():
+    try:
+        return await initialize_database()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database setup failed: {exc}",
+        ) from exc
 
 app.include_router(chatbot.router, prefix='/{API_BASE_NAME}/{API_VERSION}')
 
