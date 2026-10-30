@@ -212,3 +212,5 @@ env
 
 myenv/
 venv/
+
+evals/result/*

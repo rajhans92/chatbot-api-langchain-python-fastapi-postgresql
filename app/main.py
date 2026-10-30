@@ -31,7 +31,7 @@ async def setup_database():
             detail=f"Database setup failed: {exc}",
         ) from exc
 
-app.include_router(chatbot.router, prefix='/{API_BASE_NAME}/{API_VERSION}')
+app.include_router(chatbot.router, prefix=f'/{API_BASE_NAME}/{API_VERSION}')
 
 @app.get("/")
 def read_root():
