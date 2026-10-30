@@ -8,7 +8,7 @@ def load(path):
     with open(path) as f:
         return [json.loads(line) for line in f]
 
-def call_bot(message, user_id="1", session_id="eval"):
+def call_bot(message, user_id="1", session_id="1"):
     start = time.time()
     first_token_time = None
     chunks = []
