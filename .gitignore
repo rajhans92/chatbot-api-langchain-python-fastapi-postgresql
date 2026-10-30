@@ -213,4 +213,4 @@ env
 myenv/
 venv/
 
-evals/result/*
+evals/results/*
